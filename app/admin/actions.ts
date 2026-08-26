@@ -25,11 +25,6 @@ function csvTags(raw: string) {
   return [...new Set(raw.split(",").map((tag) => tag.trim()).filter(Boolean))];
 }
 
-function clampDifficulty(raw: FormDataEntryValue | null) {
-  const value = Number(raw ?? 3);
-  if (!Number.isFinite(value)) return 3;
-  return Math.min(10, Math.max(1, Math.round(value)));
-}
 
 export async function createStudent(formData: FormData) {
   await requireRole("admin");
@@ -152,7 +147,6 @@ export async function createLearningContent(formData: FormData) {
   const title = text(formData, "contentTitle");
   const majorTopic = text(formData, "majorTopic");
   const subTopic = text(formData, "subTopic");
-  const difficultyLevel = clampDifficulty(formData.get("difficultyLevel"));
   const baseTags = csvTags(text(formData, "tags"));
   const allowed = ["vocabulary", "grammar", "dialogue", "passage"];
 
@@ -228,12 +222,30 @@ export async function createLearningContent(formData: FormData) {
     content_text: contentText,
     major_topic: majorTopic || null,
     sub_topic: subTopic || null,
-    difficulty_level: difficultyLevel,
+    difficulty_level: null,
     tags,
     metadata,
     created_by: profile.id,
     updated_at: new Date().toISOString(),
   });
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin");
+  revalidatePath("/student");
+}
+
+
+export async function deleteLearningContent(formData: FormData) {
+  await requireRole("admin");
+  const contentId = text(formData, "contentId");
+  if (!contentId) return;
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("learning_contents")
+    .delete()
+    .eq("id", contentId);
+
   if (error) throw new Error(error.message);
 
   revalidatePath("/admin");

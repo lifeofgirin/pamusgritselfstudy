@@ -1,0 +1,19 @@
+Pamus Grit Study v1.2 패치
+
+변경 내용
+1. 관리자 학습자료 등록에서 수동 난이도 선택 삭제
+2. 기존 수동 난이도 값 초기화
+3. difficulty_level은 AI가 나중에 분석한 뒤 기록할 수 있도록 NULL 허용
+4. 등록된 학습자료마다 삭제 버튼 추가
+5. 삭제 전 확인창 표시
+6. 학생 화면에서 수동 난이도 표시 제거
+
+적용 순서
+1. Supabase SQL Editor에서 supabase/content-difficulty-ai-v1_2.sql 실행
+2. 이 패치 ZIP의 app 폴더 파일들을 GitHub 동일 경로에 덮어쓰기
+3. Commit
+4. Vercel 자동 배포 완료 후 관리자 페이지 확인
+
+주의
+- app/actions/auth.ts는 이 패치에 포함하지 않았습니다. 현재 정상 로그인되는 auth.ts를 그대로 유지하세요.
+- AI 난이도 자동 분석 API 연결은 다음 단계에서 추가합니다.

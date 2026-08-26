@@ -20,7 +20,7 @@ export default async function StudentPage() {
   const textbookIds = [...new Set((units ?? []).map((item) => item.textbook_id))];
   const { data: textbooks } = textbookIds.length ? await db.from("textbooks").select("id,title,publisher").in("id", textbookIds) : { data: [] as any[] };
   const { data: contents } = unitIds.length
-    ? await db.from("learning_contents").select("id,unit_id,type,title,content_text,major_topic,sub_topic,difficulty_level,tags,metadata").in("unit_id", unitIds).order("created_at")
+    ? await db.from("learning_contents").select("id,unit_id,type,title,content_text,major_topic,sub_topic,tags,metadata").in("unit_id", unitIds).order("created_at")
     : { data: [] as any[] };
 
   return (
@@ -58,7 +58,6 @@ function ContentDetails({ item }: { item: any }) {
       <summary>
         <span className="tag tag-red">{typeName[item.type]}</span>
         <span className="learning-title">{item.title}</span>
-        <span className="difficulty-badge">Lv.{item.difficulty_level ?? 3}</span>
       </summary>
       {(item.major_topic || item.sub_topic) && <div className="learning-path">{[item.major_topic, item.sub_topic].filter(Boolean).join(" › ")}</div>}
       {item.type === "vocabulary" && <VocabularyContent metadata={metadata} fallback={item.content_text} />}

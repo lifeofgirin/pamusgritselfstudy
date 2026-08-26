@@ -12,6 +12,7 @@ import {
   enableUnitForClass,
 } from "./actions";
 import LearningContentForm from "./LearningContentForm";
+import DeleteLearningContentButton from "./DeleteLearningContentButton";
 
 export default async function AdminPage() {
   const profile = await requireRole("admin");
@@ -24,7 +25,7 @@ export default async function AdminPage() {
     db.from("class_members").select("class_id,student_id"),
     db.from("class_textbooks").select("class_id,textbook_id"),
     db.from("class_units").select("class_id,unit_id,enabled"),
-    db.from("learning_contents").select("id,unit_id,type,title,major_topic,sub_topic,difficulty_level,tags").order("created_at", { ascending: false }),
+    db.from("learning_contents").select("id,unit_id,type,title,major_topic,sub_topic,tags").order("created_at", { ascending: false }),
   ]);
 
   const students = studentsRes.data ?? [];
@@ -142,8 +143,8 @@ export default async function AdminPage() {
 
           <section className="card span-8">
             <div className="card-heading">
-              <div><h2>4. 학습자료 등록</h2><p>AI 출제에 바로 활용할 수 있도록 자료를 세부 구조로 저장합니다.</p></div>
-              <span className="tag tag-red">v1.1</span>
+              <div><h2>4. 학습자료 등록</h2><p>자료만 정확히 등록하면 됩니다. 난이도는 이후 AI가 자동 분석합니다.</p></div>
+              <span className="tag tag-red">v1.2</span>
             </div>
             <LearningContentForm units={unitOptions} />
           </section>
@@ -158,7 +159,7 @@ export default async function AdminPage() {
                   <div className="unit-card" key={item.id}>
                     <div className="content-list-top">
                       <span className="tag tag-red">{contentTypeName[item.type]}</span>
-                      <span className="difficulty-badge">Lv.{item.difficulty_level ?? 3}</span>
+                      <DeleteLearningContentButton contentId={item.id} title={item.title} />
                     </div>
                     <strong>{item.title}</strong>
                     {(item.major_topic || item.sub_topic) && <div className="muted content-topic">{[item.major_topic, item.sub_topic].filter(Boolean).join(" › ")}</div>}

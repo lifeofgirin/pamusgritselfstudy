@@ -12,7 +12,7 @@ type ContentType = "vocabulary" | "grammar" | "dialogue" | "passage";
 
 const TYPES: { value: ContentType; label: string; description: string }[] = [
   { value: "vocabulary", label: "어휘", description: "단어·뜻·품사·예문을 구조화해서 저장" },
-  { value: "grammar", label: "문법", description: "대분류·세부개념·난이도를 분리해서 저장" },
+  { value: "grammar", label: "문법", description: "대분류·세부개념·설명·예문을 구조화해서 저장" },
   { value: "dialogue", label: "대화문", description: "상황·화자별 대화·핵심 표현을 저장" },
   { value: "passage", label: "본문", description: "본문·해석·문법 포인트·핵심 어휘를 저장" },
 ];
@@ -65,6 +65,11 @@ export default function LearningContentForm({ units }: { units: UnitOption[] }) 
         <input className="input" name="tags" placeholder="예: 시험범위, 핵심, 서술형 대비 (쉼표로 구분)" />
       </div>
 
+      <div className="ai-note">
+        <strong>난이도는 직접 설정하지 않습니다.</strong>
+        <span>AI 문제 생성 단계에서 문장 구조·문법 요소·어휘·문항 유형을 분석해 자동으로 난이도를 잡도록 연결합니다.</span>
+      </div>
+
       <button className="btn btn-primary btn-wide">학습자료 등록</button>
     </form>
   );
@@ -84,12 +89,9 @@ function VocabularyFields() {
         />
         <div className="form-help">한 줄에 한 단어 · <b>영단어 | 뜻 | 품사 | 예문 | 예문해석</b> 순서. 뒤 항목은 생략 가능.</div>
       </div>
-      <div className="form-row">
-        <div className="field">
-          <label>어휘 범주 <span className="label-optional">선택</span></label>
-          <input className="input" name="majorTopic" placeholder="예: Unit 핵심 어휘" />
-        </div>
-        <DifficultyField defaultValue={2} />
+      <div className="field">
+        <label>어휘 범주 <span className="label-optional">선택</span></label>
+        <input className="input" name="majorTopic" placeholder="예: Unit 핵심 어휘" />
       </div>
     </div>
   );
@@ -109,7 +111,6 @@ function GrammarFields() {
           <input className="input" name="subTopic" placeholder="예: 4형식 수동태" required />
         </div>
       </div>
-      <DifficultyField defaultValue={4} />
       <div className="field">
         <label>개념 설명</label>
         <textarea className="textarea" name="grammarExplanation" placeholder="학생이 알아야 할 규칙, 변환 방식, 주의점 등을 입력" required />
@@ -130,12 +131,9 @@ function DialogueFields() {
   return (
     <div className="content-fields">
       <div className="section-kicker">대화문 등록</div>
-      <div className="form-row">
-        <div className="field">
-          <label>대화 상황 / 의사소통 기능</label>
-          <input className="input" name="majorTopic" placeholder="예: 조언하기 / 충고 구하기" required />
-        </div>
-        <DifficultyField defaultValue={3} />
+      <div className="field">
+        <label>대화 상황 / 의사소통 기능</label>
+        <input className="input" name="majorTopic" placeholder="예: 조언하기 / 충고 구하기" required />
       </div>
       <div className="field">
         <label>영어 대화문</label>
@@ -158,12 +156,9 @@ function PassageFields() {
   return (
     <div className="content-fields">
       <div className="section-kicker">본문 등록</div>
-      <div className="form-row">
-        <div className="field">
-          <label>본문 주제 <span className="label-optional">선택</span></label>
-          <input className="input" name="majorTopic" placeholder="예: 환경 보호" />
-        </div>
-        <DifficultyField defaultValue={4} />
+      <div className="field">
+        <label>본문 주제 <span className="label-optional">선택</span></label>
+        <input className="input" name="majorTopic" placeholder="예: 환경 보호" />
       </div>
       <div className="field">
         <label>영어 본문</label>
@@ -187,24 +182,3 @@ function PassageFields() {
   );
 }
 
-function DifficultyField({ defaultValue }: { defaultValue: number }) {
-  return (
-    <div className="field">
-      <label>세부 난이도</label>
-      <select className="select" name="difficultyLevel" defaultValue={String(defaultValue)}>
-        {Array.from({ length: 10 }, (_, index) => index + 1).map((level) => (
-          <option key={level} value={level}>Lv.{level} {difficultyLabel(level)}</option>
-        ))}
-      </select>
-      <div className="form-help">상/중/하 대신 1~10으로 저장. 이후 학생별 적응형 출제에 사용.</div>
-    </div>
-  );
-}
-
-function difficultyLabel(level: number) {
-  if (level <= 2) return "기초 확인";
-  if (level <= 4) return "기본 적용";
-  if (level <= 6) return "내신 응용";
-  if (level <= 8) return "고난도 변형";
-  return "최상위 복합";
-}
