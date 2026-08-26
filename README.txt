@@ -1,12 +1,12 @@
-교체 위치
+Pamus Grit Study v1.1 패치
 
-GitHub 저장소에서:
-app/actions/auth.ts
+1) Supabase SQL Editor에서 supabase/content-structure-v2.sql 실행
+2) GitHub에 아래 파일을 같은 경로로 덮어쓰기
+   app/admin/page.tsx
+   app/admin/actions.ts
+   app/admin/LearningContentForm.tsx (새 파일)
+   app/student/page.tsx
+   app/globals.css
+3) Commit 후 Vercel 자동 재배포
 
-기존 auth.ts를 삭제하거나 내용을 전부 지우고,
-이 ZIP 안의 app/actions/auth.ts 파일로 교체하세요.
-
-Commit 후 Vercel 배포가 완료된 뒤 다시 로그인하세요.
-
-정상 반영되었다면 오류 메시지에 반드시 [DEBUG-V2]가 표시됩니다.
-[DEBUG-V2]가 보이지 않으면 Vercel이 다른 커밋/브랜치 또는 다른 저장소를 배포 중인 것입니다.
+중요: app/actions/auth.ts는 건드리지 마세요. 현재 정상 로그인 파일을 그대로 유지합니다.
