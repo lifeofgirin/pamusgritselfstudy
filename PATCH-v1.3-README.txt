@@ -1,0 +1,23 @@
+Pamus Grit Study v1.3 - AI 자료 분석 + AI 내신 문제 생성
+
+적용 순서
+1) Supabase SQL Editor에서 supabase/ai-v1_3.sql 전체 실행
+2) 이 패치의 파일들을 GitHub 저장소의 같은 경로에 덮어쓰기
+3) Vercel > Project > Settings > Environment Variables에 추가
+   Key: OPENAI_API_KEY
+   Value: OpenAI Platform에서 발급한 API key
+
+   선택사항:
+   Key: OPENAI_MODEL
+   Value: gpt-5.6-luna
+   (입력하지 않아도 기본값 gpt-5.6-luna 사용)
+
+4) Vercel Redeploy
+5) 관리자 페이지에서 등록된 자료의 'AI 분석' 버튼 테스트
+6) 5. AI 내신 문제 생성에서 Unit / 유형 / 문항 수 선택 후 생성
+
+주의
+- OPENAI_API_KEY는 GitHub 코드에 넣지 말고 Vercel Environment Variables에만 저장하세요.
+- app/actions/auth.ts는 이 패치에 포함되어 있지 않습니다. 현재 정상 로그인되는 파일을 그대로 유지합니다.
+- 생성 문제는 draft(초안) 상태로 저장됩니다. 관리자가 '승인' 버튼을 눌러야 approved 상태가 됩니다.
+- v1.3에서는 학생 문제풀이/자동채점은 아직 연결하지 않습니다. 다음 단계에서 붙이면 됩니다.

@@ -67,7 +67,7 @@ export default function LearningContentForm({ units }: { units: UnitOption[] }) 
 
       <div className="ai-note">
         <strong>난이도는 직접 설정하지 않습니다.</strong>
-        <span>AI 문제 생성 단계에서 문장 구조·문법 요소·어휘·문항 유형을 분석해 자동으로 난이도를 잡도록 연결합니다.</span>
+        <span>자료를 등록한 뒤 오른쪽 목록의 AI 분석 버튼을 누르면 문장 구조·문법 요소·어휘 수준을 바탕으로 자동 난이도와 출제 포인트를 기록합니다.</span>
       </div>
 
       <button className="btn btn-primary btn-wide">학습자료 등록</button>

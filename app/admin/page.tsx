@@ -13,11 +13,28 @@ import {
 } from "./actions";
 import LearningContentForm from "./LearningContentForm";
 import DeleteLearningContentButton from "./DeleteLearningContentButton";
+import AiAnalyzeButton from "./AiAnalyzeButton";
+import AiQuestionGenerator from "./AiQuestionGenerator";
+import QuestionActionButtons from "./QuestionActionButtons";
+
+
+const QUESTION_TYPE_LABELS: Record<string, string> = {
+  vocabulary: "어휘",
+  grammar: "어법/문법",
+  content_match: "내용일치",
+  blank: "빈칸",
+  order: "순서배열",
+  writing: "서술형/영작",
+};
+
+function questionTypeLabel(type: string) {
+  return QUESTION_TYPE_LABELS[type] ?? type;
+}
 
 export default async function AdminPage() {
   const profile = await requireRole("admin");
   const db = createAdminClient();
-  const [studentsRes, classesRes, textbooksRes, unitsRes, membersRes, classBooksRes, classUnitsRes, contentsRes] = await Promise.all([
+  const [studentsRes, classesRes, textbooksRes, unitsRes, membersRes, classBooksRes, classUnitsRes, contentsRes, questionsRes] = await Promise.all([
     db.from("students").select("id,name,grade_code,grade_base_year,user_id").order("name"),
     db.from("classes").select("id,name").order("name"),
     db.from("textbooks").select("id,title,publisher").order("title"),
@@ -25,7 +42,8 @@ export default async function AdminPage() {
     db.from("class_members").select("class_id,student_id"),
     db.from("class_textbooks").select("class_id,textbook_id"),
     db.from("class_units").select("class_id,unit_id,enabled"),
-    db.from("learning_contents").select("id,unit_id,type,title,major_topic,sub_topic,tags").order("created_at", { ascending: false }),
+    db.from("learning_contents").select("id,unit_id,type,title,major_topic,sub_topic,tags,difficulty_level,ai_analysis,ai_analyzed_at").order("created_at", { ascending: false }),
+    db.from("generated_questions").select("id,unit_id,question_type,prompt,choices,answer,explanation,concept_tags,difficulty_level,difficulty_reason,status,created_at").order("created_at", { ascending: false }).limit(60),
   ]);
 
   const students = studentsRes.data ?? [];
@@ -36,6 +54,7 @@ export default async function AdminPage() {
   const classBooks = classBooksRes.data ?? [];
   const classUnits = classUnitsRes.data ?? [];
   const contents = contentsRes.data ?? [];
+  const questions = questionsRes.data ?? [];
 
   const contentTypeName: Record<string, string> = { vocabulary: "어휘", grammar: "문법", dialogue: "대화문", passage: "본문" };
   const unitOptions = units.map((unit) => {
@@ -144,7 +163,7 @@ export default async function AdminPage() {
           <section className="card span-8">
             <div className="card-heading">
               <div><h2>4. 학습자료 등록</h2><p>자료만 정확히 등록하면 됩니다. 난이도는 이후 AI가 자동 분석합니다.</p></div>
-              <span className="tag tag-red">v1.2</span>
+              <span className="tag tag-red">v1.3</span>
             </div>
             <LearningContentForm units={unitOptions} />
           </section>
@@ -159,15 +178,82 @@ export default async function AdminPage() {
                   <div className="unit-card" key={item.id}>
                     <div className="content-list-top">
                       <span className="tag tag-red">{contentTypeName[item.type]}</span>
-                      <DeleteLearningContentButton contentId={item.id} title={item.title} />
+                      <div className="actions">
+                        <AiAnalyzeButton contentId={item.id} analyzed={!!item.ai_analyzed_at} />
+                        <DeleteLearningContentButton contentId={item.id} title={item.title} />
+                      </div>
                     </div>
                     <strong>{item.title}</strong>
                     {(item.major_topic || item.sub_topic) && <div className="muted content-topic">{[item.major_topic, item.sub_topic].filter(Boolean).join(" › ")}</div>}
                     <div className="muted" style={{ fontSize: 13, marginTop: 5 }}>{textbook?.title} · Unit {unit?.unit_no}</div>
+                    {item.ai_analyzed_at ? (
+                      <div className="ai-analysis-mini">
+                        <div className="ai-analysis-head">
+                          <span className="difficulty-badge">AI Lv.{item.difficulty_level ?? "-"}</span>
+                          <span>AI 분석 완료</span>
+                        </div>
+                        {item.ai_analysis?.summary && <p>{item.ai_analysis.summary}</p>}
+                        {Array.isArray(item.ai_analysis?.target_skills) && !!item.ai_analysis.target_skills.length && (
+                          <div className="tag-row">{item.ai_analysis.target_skills.slice(0, 4).map((tag: string, index: number) => <span className="tag" key={index}>{tag}</span>)}</div>
+                        )}
+                      </div>
+                    ) : <div className="ai-pending-text">AI 미분석 · 버튼을 눌러 난이도와 출제 포인트를 자동 분석</div>}
                   </div>
                 );
               })}
               {!contents.length && <div className="muted">아직 등록된 자료가 없습니다.</div>}
+            </div>
+          </section>
+
+          <section className="card span-12">
+            <div className="card-heading">
+              <div>
+                <h2>5. AI 내신 문제 생성</h2>
+                <p>등록한 시험범위만 사용해서 문제를 만들고, 문제마다 AI 난이도와 취약점 태그를 자동 기록합니다.</p>
+              </div>
+              <span className="tag tag-red">AI</span>
+            </div>
+            <AiQuestionGenerator units={unitOptions} />
+          </section>
+
+          <section className="card span-12">
+            <div className="card-heading">
+              <div>
+                <h2>AI 생성 문제 검수</h2>
+                <p>아직 학생에게 배포하지 않습니다. 여기서 정답과 해설을 먼저 확인하고 승인하세요.</p>
+              </div>
+              <span className="tag">{questions.length}문항</span>
+            </div>
+            <div className="question-list">
+              {questions.map((question, index) => {
+                const unit = units.find((item) => item.id === question.unit_id);
+                const textbook = textbooks.find((book) => book.id === unit?.textbook_id);
+                const choices = Array.isArray(question.choices) ? question.choices : [];
+                return (
+                  <article className="question-card" key={question.id}>
+                    <div className="question-top">
+                      <div className="question-meta">
+                        <span className="question-number">#{questions.length - index}</span>
+                        <span className="tag tag-red">{questionTypeLabel(question.question_type)}</span>
+                        <span className="difficulty-badge">AI Lv.{question.difficulty_level}</span>
+                        <span className={`status-badge ${question.status === "approved" ? "approved" : "draft"}`}>{question.status === "approved" ? "승인됨" : "초안"}</span>
+                      </div>
+                      <QuestionActionButtons questionId={question.id} status={question.status} />
+                    </div>
+                    <div className="question-source">{textbook?.title ?? "교과서"} · Unit {unit?.unit_no ?? "-"}</div>
+                    <p className="question-prompt">{question.prompt}</p>
+                    {!!choices.length && <ol className="question-choices">{choices.map((choice: string, choiceIndex: number) => <li key={choiceIndex}>{choice}</li>)}</ol>}
+                    <details className="answer-detail">
+                      <summary>정답 / 해설 보기</summary>
+                      <div className="answer-box"><strong>정답</strong><p>{question.answer}</p></div>
+                      <div className="answer-box"><strong>해설</strong><p>{question.explanation}</p></div>
+                      <div className="answer-box"><strong>AI 난이도 근거</strong><p>{question.difficulty_reason}</p></div>
+                      {!!question.concept_tags?.length && <div className="tag-row">{question.concept_tags.map((tag: string, tagIndex: number) => <span className="tag" key={tagIndex}>{tag}</span>)}</div>}
+                    </details>
+                  </article>
+                );
+              })}
+              {!questions.length && <div className="muted empty-ai-questions">아직 AI가 생성한 문제가 없습니다.</div>}
             </div>
           </section>
         </div>
