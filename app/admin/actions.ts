@@ -264,12 +264,22 @@ type ContentAnalysis = {
   question_opportunities: string[];
 };
 
+type ChoiceExplanationAI = {
+  choice_no: number;
+  is_correct: boolean;
+  explanation: string;
+  translation: string;
+};
+
 type GeneratedQuestionAI = {
   question_type: "vocabulary" | "grammar" | "content_match" | "blank" | "order" | "writing";
   prompt: string;
   choices: string[];
+  correct_choice_no: number;
   answer: string;
   explanation: string;
+  choice_explanations: ChoiceExplanationAI[];
+  ambiguity_check: string;
   concept_tags: string[];
   difficulty_level: number;
   difficulty_reason: string;
@@ -316,8 +326,25 @@ const questionsSchema = {
           },
           prompt: { type: "string" },
           choices: { type: "array", items: { type: "string" }, maxItems: 5 },
+          correct_choice_no: { type: "integer", minimum: 0, maximum: 5 },
           answer: { type: "string" },
           explanation: { type: "string" },
+          choice_explanations: {
+            type: "array",
+            maxItems: 5,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                choice_no: { type: "integer", minimum: 1, maximum: 5 },
+                is_correct: { type: "boolean" },
+                explanation: { type: "string" },
+                translation: { type: "string" },
+              },
+              required: ["choice_no", "is_correct", "explanation", "translation"],
+            },
+          },
+          ambiguity_check: { type: "string" },
           concept_tags: { type: "array", items: { type: "string" } },
           difficulty_level: { type: "integer", minimum: 1, maximum: 10 },
           difficulty_reason: { type: "string" },
@@ -326,8 +353,11 @@ const questionsSchema = {
           "question_type",
           "prompt",
           "choices",
+          "correct_choice_no",
           "answer",
           "explanation",
+          "choice_explanations",
+          "ambiguity_check",
           "concept_tags",
           "difficulty_level",
           "difficulty_reason",
@@ -337,6 +367,45 @@ const questionsSchema = {
   },
   required: ["questions"],
 } as const;
+
+function validateGeneratedQuestion(question: GeneratedQuestionAI, index: number) {
+  const choices = Array.isArray(question.choices) ? question.choices : [];
+  const reviews = Array.isArray(question.choice_explanations) ? question.choice_explanations : [];
+
+  if (!choices.length) {
+    if (question.correct_choice_no !== 0) {
+      throw new Error(`AI 검수 오류: ${index + 1}번 서술형 문항의 정답 번호가 올바르지 않습니다.`);
+    }
+    return;
+  }
+
+  if (choices.length < 4 || choices.length > 5) {
+    throw new Error(`AI 검수 오류: ${index + 1}번 객관식 문항의 보기 수가 올바르지 않습니다.`);
+  }
+
+  if (reviews.length !== choices.length) {
+    throw new Error(`AI 검수 오류: ${index + 1}번 문항의 보기별 해설 수가 보기 수와 다릅니다.`);
+  }
+
+  const correctReviews = reviews.filter((item) => item.is_correct);
+  if (correctReviews.length !== 1) {
+    throw new Error(`AI 검수 오류: ${index + 1}번 문항에 정답으로 표시된 보기가 ${correctReviews.length}개입니다. 다시 생성해주세요.`);
+  }
+
+  if (
+    question.correct_choice_no < 1 ||
+    question.correct_choice_no > choices.length ||
+    correctReviews[0].choice_no !== question.correct_choice_no
+  ) {
+    throw new Error(`AI 검수 오류: ${index + 1}번 문항의 정답 번호와 보기별 판정이 일치하지 않습니다.`);
+  }
+
+  const expectedNumbers = choices.map((_, choiceIndex) => choiceIndex + 1);
+  const reviewNumbers = reviews.map((item) => item.choice_no).sort((a, b) => a - b);
+  if (JSON.stringify(expectedNumbers) !== JSON.stringify(reviewNumbers)) {
+    throw new Error(`AI 검수 오류: ${index + 1}번 문항의 보기 번호가 올바르지 않습니다.`);
+  }
+}
 
 function contentForAI(item: any) {
   return JSON.stringify({
@@ -458,7 +527,7 @@ export async function generateAiQuestions(formData: FormData) {
     ? "어휘, 어법, 내용일치, 빈칸, 순서배열, 서술형을 자료에 맞게 골고루 섞는다."
     : `모든 문항을 ${requestedType} 유형으로 만든다.`;
 
-  const result = await structuredAI<{ questions: GeneratedQuestionAI[] }>({
+  const firstPass = await structuredAI<{ questions: GeneratedQuestionAI[] }>({
     name: "pamus_exam_questions",
     schema: questionsSchema,
     instructions: `
@@ -469,27 +538,74 @@ ${typeGuide}
 정확히 ${requestedCount}문항을 만든다.
 목표 출제 난이도는 Lv.${targetDifficulty}/10이다. 자료 자체의 난이도와 별개로, 문항을 푸는 데 필요한 변형 정도·함정·추론량·서술 요구를 조절해 목표 난이도에 최대한 맞춘다.
 Lv.1~2는 개념/뜻 확인, Lv.3~4는 기본 적용, Lv.5~6은 일반 내신 변형, Lv.7~8은 복합 변형·함정, Lv.9~10은 최상위 추론·서술형 수준으로 본다.
-생성 후 difficulty_level에는 네가 실제로 판단한 문항 난이도를 기록한다. 목표와 실제 판정이 약간 다를 수 있다.
+생성 후 difficulty_level에는 네가 실제로 판단한 문항 난이도를 기록한다.
 
-문항 원칙:
+객관식 품질 원칙:
+- 객관식 문항의 choices는 반드시 4~5개다.
+- 정답은 반드시 단 하나만 존재해야 한다.
+- 문제를 출력하기 전에 모든 보기를 각각 실제로 풀어본 것처럼 검토한다.
+- 문법적으로 또는 문맥상 2개 이상의 보기가 정답이 될 가능성이 조금이라도 있으면, 오답 보기를 다시 써서 하나만 정답이 되게 한다.
+- correct_choice_no는 1부터 시작하는 정답 보기 번호다.
+- choice_explanations에는 모든 보기 각각에 대해 choice_no, is_correct, explanation, translation을 작성한다.
+- is_correct=true는 정확히 하나만 있어야 하며 correct_choice_no와 일치해야 한다.
+- explanation에는 그 보기가 왜 맞거나 왜 틀렸는지를 구체적인 문법/문맥 근거로 설명한다.
+- 영어 문장/구/단어가 포함된 보기라면 translation에 자연스러운 한국어 해석을 넣는다. 해석이 불필요하면 빈 문자열로 둔다.
+- ambiguity_check에는 '왜 다른 보기들은 정답이 될 수 없는지'까지 확인한 복수정답 검수 결과를 한두 문장으로 적는다.
+
+서술형 품질 원칙:
+- choices와 choice_explanations는 빈 배열로 둔다.
+- correct_choice_no는 0으로 둔다.
+- answer에는 허용 가능한 대표 정답을 명확히 적는다.
+- 정답 표현이 여러 개 가능하면 explanation에 허용 가능한 다른 표현과 채점 기준을 함께 적는다.
+
+공통 원칙:
 - 실제 학교 내신처럼 원문 활용, 문장 변형, 문맥 판단을 적절히 섞는다.
-- 정답은 반드시 하나로 명확해야 한다.
-- 객관식이 적합한 유형은 choices에 4~5개 보기를 넣는다.
-- 서술형/영작처럼 보기가 필요 없는 문제는 choices를 빈 배열로 둔다.
 - answer에는 채점 가능한 정답을 명확히 적는다.
-- explanation에는 왜 그 답인지 범위 자료와 문법 근거를 짧게 설명한다.
+- explanation에는 최종 정답의 핵심 근거를 요약한다.
 - concept_tags는 학생 취약점 분석에 쓸 수 있도록 '수동태 > 4형식', '어휘 > 문맥 의미'처럼 구체적으로 작성한다.
-- difficulty_level은 1~10으로 AI가 문항 자체의 요구 수준을 판단한다.
 - difficulty_reason에는 문장 구조, 어휘, 변형, 추론 중 무엇 때문에 그 난이도인지 적는다.
 - 동일 문장을 단순히 보기만 바꿔 반복 출제하지 않는다.
 - 한국어 지시문을 사용하되 영어 원문/보기는 시험에 적합하게 유지한다.
     `.trim(),
     input,
-    maxOutputTokens: 8500,
+    maxOutputTokens: 10000,
   });
 
-  const questions = result.questions.slice(0, requestedCount);
+  const reviewInputRaw = JSON.stringify({
+    source: sourcePayload,
+    draft_questions: firstPass.questions,
+  });
+  const reviewInput = reviewInputRaw.length > 75000 ? reviewInputRaw.slice(0, 75000) : reviewInputRaw;
+
+  const reviewed = await structuredAI<{ questions: GeneratedQuestionAI[] }>({
+    name: "pamus_exam_questions_reviewed",
+    schema: questionsSchema,
+    instructions: `
+너는 영어 내신 시험의 최종 검수자다.
+입력에는 시험범위 자료와 1차 생성된 문제들이 들어 있다.
+문항 수와 문제 유형은 가능한 한 유지하되, 오류가 있으면 직접 수정해서 완성본을 출력한다.
+
+가장 중요한 검수 기준:
+1. 객관식은 정답이 반드시 정확히 하나여야 한다.
+2. 모든 보기를 실제로 대입·해석·문법 검토하여 2개 이상 정답이 가능한지 점검한다.
+3. 복수정답 가능성, 애매한 표현, 범위 밖 지식 의존, 정답 근거 부족이 있으면 prompt나 choices를 수정한다.
+4. choice_explanations는 보기 개수와 정확히 같아야 하며, 각 보기마다 왜 맞는지/틀린지 구체적으로 설명한다.
+5. 영어 보기에는 자연스러운 한국어 해석을 translation에 제공한다.
+6. is_correct=true는 객관식에서 정확히 하나이며 correct_choice_no와 일치한다.
+7. ambiguity_check에는 다른 모든 보기가 왜 정답이 아닌지 최종 점검 결과를 적는다.
+8. 서술형은 correct_choice_no=0, choices=[], choice_explanations=[]로 둔다.
+9. 시험범위 자료에 근거하지 않은 내용은 삭제하거나 수정한다.
+10. 정답과 해설이 문제·보기와 완전히 일치하는지 마지막으로 확인한다.
+
+결과는 '검수 완료된 최종 문제'만 출력한다.
+    `.trim(),
+    input: reviewInput,
+    maxOutputTokens: 11000,
+  });
+
+  const questions = reviewed.questions.slice(0, requestedCount);
   if (!questions.length) throw new Error("AI가 문제를 생성하지 못했습니다. 다시 시도해주세요.");
+  questions.forEach(validateGeneratedQuestion);
 
   const sourceContentIds = contents.map((item) => item.id);
   const rows = questions.map((question) => ({
@@ -498,8 +614,11 @@ Lv.1~2는 개념/뜻 확인, Lv.3~4는 기본 적용, Lv.5~6은 일반 내신 �
     question_type: question.question_type,
     prompt: question.prompt,
     choices: question.choices,
+    correct_choice_no: question.correct_choice_no,
     answer: question.answer,
     explanation: question.explanation,
+    choice_explanations: question.choice_explanations,
+    ambiguity_check: question.ambiguity_check,
     concept_tags: question.concept_tags,
     target_difficulty_level: targetDifficulty,
     difficulty_level: question.difficulty_level,
@@ -599,6 +718,10 @@ const pdfAnalysisSchema = {
   required: ["summary", "detected_unit_title", "warnings", "contents"],
 } as const;
 
+function safeFilename(raw: string) {
+  const cleaned = raw.normalize("NFKC").replace(/[^a-zA-Z0-9가-힣._-]+/g, "-").replace(/-+/g, "-");
+  return cleaned.slice(-120) || "material.pdf";
+}
 
 export async function createPdfUploadTicket(unitId: string, originalFilename: string, fileSize: number) {
   try {
@@ -614,7 +737,7 @@ export async function createPdfUploadTicket(unitId: string, originalFilename: st
     if (unitError || !unit) return { ok: false as const, error: "Unit을 찾을 수 없습니다." };
 
     const importId = crypto.randomUUID();
-    const path = `${unitId}/${importId}.pdf`;
+    const path = `${unitId}/${importId}-${safeFilename(originalFilename)}`;
     const { data: signed, error: signedError } = await admin.storage.from("study-pdfs").createSignedUploadUrl(path);
     if (signedError || !signed?.token) return { ok: false as const, error: signedError?.message ?? "PDF 업로드 주소를 만들지 못했습니다." };
 
@@ -659,7 +782,7 @@ export async function analyzePdfImport(importId: string) {
     if (unitError || !unit) throw new Error(unitError?.message ?? "Unit 정보를 찾지 못했습니다.");
 
     const { data: textbook } = await admin.from("textbooks").select("title,publisher").eq("id", unit.textbook_id).single();
-    openAIFileId = await uploadOpenAIUserFile(fileBlob, `pamus-study-${importId}.pdf`);
+    openAIFileId = await uploadOpenAIUserFile(fileBlob, pdfImport.original_filename);
 
     const result = await structuredAIWithFile<PdfAnalysisResult>({
       name: "pamus_pdf_material_analysis",

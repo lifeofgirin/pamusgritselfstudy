@@ -172,3 +172,16 @@ th { color:var(--muted); font-size:12px; }
   .pdf-upload-button{margin-bottom:0;}
   .confidence-badge{margin-left:0;}
 }
+
+.choice-review-box { background:#fff; border:1px solid #eceff3; }
+.choice-review-list { display:grid; gap:9px; margin-top:8px; }
+.choice-review-row { border:1px solid var(--line); border-radius:10px; padding:10px 11px; background:#fff; }
+.choice-review-row.is-correct { border-color:#b7dfc6; background:#f5fbf7; }
+.choice-review-row.is-wrong { background:#fcfcfd; }
+.choice-review-head { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+.choice-review-head span { font-weight:900; font-size:13px; }
+.choice-review-head b { font-size:11px; padding:3px 7px; border-radius:999px; background:#eef1f4; color:#5b6470; }
+.choice-review-row.is-correct .choice-review-head b { background:#dff4e7; color:#237447; }
+.choice-review-row p { margin:4px 0 0 !important; }
+.choice-review-row em { font-style:normal; font-weight:850; color:#7b8490; margin-right:5px; }
+.ambiguity-box { border:1px dashed #d8c9a8; background:#fffaf0; }

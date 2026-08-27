@@ -44,7 +44,7 @@ export default async function AdminPage() {
     db.from("class_textbooks").select("class_id,textbook_id"),
     db.from("class_units").select("class_id,unit_id,enabled"),
     db.from("learning_contents").select("id,unit_id,type,title,major_topic,sub_topic,tags,difficulty_level,ai_analysis,ai_analyzed_at").order("created_at", { ascending: false }),
-    db.from("generated_questions").select("id,unit_id,question_type,prompt,choices,answer,explanation,concept_tags,target_difficulty_level,difficulty_level,difficulty_reason,status,created_at").order("created_at", { ascending: false }).limit(60),
+    db.from("generated_questions").select("id,unit_id,question_type,prompt,choices,correct_choice_no,answer,explanation,choice_explanations,ambiguity_check,concept_tags,target_difficulty_level,difficulty_level,difficulty_reason,status,created_at").order("created_at", { ascending: false }).limit(60),
     db.from("pdf_imports").select("id,unit_id,original_filename,status,ai_summary,ai_result,error_message,created_at").order("created_at", { ascending: false }).limit(12),
   ]);
 
@@ -260,8 +260,26 @@ export default async function AdminPage() {
                     {!!choices.length && <ol className="question-choices">{choices.map((choice: string, choiceIndex: number) => <li key={choiceIndex}>{choice}</li>)}</ol>}
                     <details className="answer-detail">
                       <summary>정답 / 해설 보기</summary>
-                      <div className="answer-box"><strong>정답</strong><p>{question.answer}</p></div>
-                      <div className="answer-box"><strong>해설</strong><p>{question.explanation}</p></div>
+                      <div className="answer-box"><strong>정답</strong><p>{question.correct_choice_no ? `${question.correct_choice_no}번 · ` : ""}{question.answer}</p></div>
+                      <div className="answer-box"><strong>핵심 해설</strong><p>{question.explanation}</p></div>
+                      {Array.isArray(question.choice_explanations) && !!question.choice_explanations.length && (
+                        <div className="answer-box choice-review-box">
+                          <strong>보기별 해설 / 해석</strong>
+                          <div className="choice-review-list">
+                            {question.choice_explanations.map((item: any, reviewIndex: number) => (
+                              <div className={`choice-review-row ${item.is_correct ? "is-correct" : "is-wrong"}`} key={reviewIndex}>
+                                <div className="choice-review-head">
+                                  <span>{item.choice_no}번</span>
+                                  <b>{item.is_correct ? "정답" : "오답"}</b>
+                                </div>
+                                {item.translation && <p><em>해석</em> {item.translation}</p>}
+                                <p><em>해설</em> {item.explanation}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {question.ambiguity_check && <div className="answer-box ambiguity-box"><strong>복수정답 검수</strong><p>{question.ambiguity_check}</p></div>}
                       <div className="answer-box"><strong>AI 난이도 근거</strong><p>{question.difficulty_reason}</p></div>
                       {!!question.concept_tags?.length && <div className="tag-row">{question.concept_tags.map((tag: string, tagIndex: number) => <span className="tag" key={tagIndex}>{tag}</span>)}</div>}
                     </details>
