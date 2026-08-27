@@ -599,10 +599,6 @@ const pdfAnalysisSchema = {
   required: ["summary", "detected_unit_title", "warnings", "contents"],
 } as const;
 
-function safeFilename(raw: string) {
-  const cleaned = raw.normalize("NFKC").replace(/[^a-zA-Z0-9가-힣._-]+/g, "-").replace(/-+/g, "-");
-  return cleaned.slice(-120) || "material.pdf";
-}
 
 export async function createPdfUploadTicket(unitId: string, originalFilename: string, fileSize: number) {
   try {
@@ -618,7 +614,7 @@ export async function createPdfUploadTicket(unitId: string, originalFilename: st
     if (unitError || !unit) return { ok: false as const, error: "Unit을 찾을 수 없습니다." };
 
     const importId = crypto.randomUUID();
-    const path = `${unitId}/${importId}-${safeFilename(originalFilename)}`;
+    const path = `${unitId}/${importId}.pdf`;
     const { data: signed, error: signedError } = await admin.storage.from("study-pdfs").createSignedUploadUrl(path);
     if (signedError || !signed?.token) return { ok: false as const, error: signedError?.message ?? "PDF 업로드 주소를 만들지 못했습니다." };
 
@@ -663,7 +659,7 @@ export async function analyzePdfImport(importId: string) {
     if (unitError || !unit) throw new Error(unitError?.message ?? "Unit 정보를 찾지 못했습니다.");
 
     const { data: textbook } = await admin.from("textbooks").select("title,publisher").eq("id", unit.textbook_id).single();
-    openAIFileId = await uploadOpenAIUserFile(fileBlob, pdfImport.original_filename);
+    openAIFileId = await uploadOpenAIUserFile(fileBlob, `pamus-study-${importId}.pdf`);
 
     const result = await structuredAIWithFile<PdfAnalysisResult>({
       name: "pamus_pdf_material_analysis",
