@@ -48,9 +48,29 @@ export default function AiQuestionGenerator({ units }: { units: UnitOption[] }) 
           </select>
         </div>
       </div>
+
+      <div className="difficulty-picker">
+        <div>
+          <label>목표 출제 레벨</label>
+          <p>자료 난이도와 별개로, 이번에 만들 문제의 변형·추론 수준을 정합니다.</p>
+        </div>
+        <select className="select difficulty-select" name="targetDifficulty" defaultValue="5">
+          <option value="1">Lv.1 · 아주 기본</option>
+          <option value="2">Lv.2 · 기본 확인</option>
+          <option value="3">Lv.3 · 쉬운 내신</option>
+          <option value="4">Lv.4 · 기본 내신</option>
+          <option value="5">Lv.5 · 일반 내신</option>
+          <option value="6">Lv.6 · 일반+변형</option>
+          <option value="7">Lv.7 · 고난도 변형</option>
+          <option value="8">Lv.8 · 복합/함정</option>
+          <option value="9">Lv.9 · 최상위</option>
+          <option value="10">Lv.10 · 최상위 서술/추론</option>
+        </select>
+      </div>
+
       <div className="ai-note ai-note-strong">
         <strong>AI가 현재 Unit에 등록된 어휘·문법·대화문·본문만 읽어서 출제합니다.</strong>
-        <span>생성 문제는 일단 초안으로 저장됩니다. 검수 후 승인해야 다음 학생 풀이 단계에서 사용할 수 있게 만들 예정입니다.</span>
+        <span>선택한 레벨은 ‘목표 난이도’입니다. 생성 후 AI가 각 문항의 실제 난이도도 다시 판정해서 함께 저장합니다.</span>
       </div>
       <GenerateButton />
     </form>

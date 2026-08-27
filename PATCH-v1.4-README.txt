@@ -1,0 +1,31 @@
+Pamus Grit Study v1.4 PATCH
+
+추가 기능
+1) AI 문제 생성 시 목표 출제 난이도 Lv.1~10 선택
+   - 자료 자체 난이도는 여전히 AI 자동 분석
+   - 문제를 만들 때만 선생님이 목표 레벨 선택
+   - 생성 후 AI가 실제 문항 난이도를 다시 판정
+
+2) PDF AI 자동 자료 등록
+   - Unit 선택 -> PDF 업로드 -> AI 분석
+   - 어휘 / 문법 / 대화문 / 본문 자동 분류
+   - 바로 등록하지 않고 관리자 검수 초안 생성
+   - 제목/본문/해석/분류 등을 수정 가능
+   - 필요 없는 항목 체크 해제 가능
+   - 검수 내용 전체 등록 버튼으로 learning_contents에 저장
+   - PDF 원본은 private Supabase Storage bucket에 보관
+   - OpenAI에 올린 임시 분석 파일은 처리 후 삭제
+
+적용 순서
+1. Supabase SQL Editor에서 supabase/ai-pdf-v1_4.sql 전체 실행
+2. 이 패치 ZIP의 파일들을 GitHub 저장소의 같은 경로에 덮어쓰기
+3. app/actions/auth.ts는 건드리지 않음
+4. Commit
+5. Vercel 자동 재배포 완료 후 관리자 페이지 확인
+
+추가 환경변수는 없음.
+기존 OPENAI_API_KEY / Supabase 환경변수를 그대로 사용합니다.
+
+PDF 제한
+- PDF만 가능
+- 최대 25MB

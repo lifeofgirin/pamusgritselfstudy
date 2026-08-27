@@ -16,6 +16,7 @@ import DeleteLearningContentButton from "./DeleteLearningContentButton";
 import AiAnalyzeButton from "./AiAnalyzeButton";
 import AiQuestionGenerator from "./AiQuestionGenerator";
 import QuestionActionButtons from "./QuestionActionButtons";
+import PdfAiImportPanel from "./PdfAiImportPanel";
 
 
 const QUESTION_TYPE_LABELS: Record<string, string> = {
@@ -34,7 +35,7 @@ function questionTypeLabel(type: string) {
 export default async function AdminPage() {
   const profile = await requireRole("admin");
   const db = createAdminClient();
-  const [studentsRes, classesRes, textbooksRes, unitsRes, membersRes, classBooksRes, classUnitsRes, contentsRes, questionsRes] = await Promise.all([
+  const [studentsRes, classesRes, textbooksRes, unitsRes, membersRes, classBooksRes, classUnitsRes, contentsRes, questionsRes, pdfImportsRes] = await Promise.all([
     db.from("students").select("id,name,grade_code,grade_base_year,user_id").order("name"),
     db.from("classes").select("id,name").order("name"),
     db.from("textbooks").select("id,title,publisher").order("title"),
@@ -43,7 +44,8 @@ export default async function AdminPage() {
     db.from("class_textbooks").select("class_id,textbook_id"),
     db.from("class_units").select("class_id,unit_id,enabled"),
     db.from("learning_contents").select("id,unit_id,type,title,major_topic,sub_topic,tags,difficulty_level,ai_analysis,ai_analyzed_at").order("created_at", { ascending: false }),
-    db.from("generated_questions").select("id,unit_id,question_type,prompt,choices,answer,explanation,concept_tags,difficulty_level,difficulty_reason,status,created_at").order("created_at", { ascending: false }).limit(60),
+    db.from("generated_questions").select("id,unit_id,question_type,prompt,choices,answer,explanation,concept_tags,target_difficulty_level,difficulty_level,difficulty_reason,status,created_at").order("created_at", { ascending: false }).limit(60),
+    db.from("pdf_imports").select("id,unit_id,original_filename,status,ai_summary,ai_result,error_message,created_at").order("created_at", { ascending: false }).limit(12),
   ]);
 
   const students = studentsRes.data ?? [];
@@ -55,6 +57,7 @@ export default async function AdminPage() {
   const classUnits = classUnitsRes.data ?? [];
   const contents = contentsRes.data ?? [];
   const questions = questionsRes.data ?? [];
+  const pdfImports = pdfImportsRes.data ?? [];
 
   const contentTypeName: Record<string, string> = { vocabulary: "어휘", grammar: "문법", dialogue: "대화문", passage: "본문" };
   const unitOptions = units.map((unit) => {
@@ -163,7 +166,7 @@ export default async function AdminPage() {
           <section className="card span-8">
             <div className="card-heading">
               <div><h2>4. 학습자료 등록</h2><p>자료만 정확히 등록하면 됩니다. 난이도는 이후 AI가 자동 분석합니다.</p></div>
-              <span className="tag tag-red">v1.3</span>
+              <span className="tag tag-red">v1.4</span>
             </div>
             <LearningContentForm units={unitOptions} />
           </section>
@@ -208,6 +211,17 @@ export default async function AdminPage() {
           <section className="card span-12">
             <div className="card-heading">
               <div>
+                <h2>4-1. PDF로 AI 자동 자료 등록</h2>
+                <p>PDF를 올리면 AI가 어휘·문법·대화문·본문으로 분류합니다. 자동 등록 전 검수 화면에서 수정할 수 있습니다.</p>
+              </div>
+              <span className="tag tag-red">PDF AI</span>
+            </div>
+            <PdfAiImportPanel units={unitOptions} imports={pdfImports as any} />
+          </section>
+
+          <section className="card span-12">
+            <div className="card-heading">
+              <div>
                 <h2>5. AI 내신 문제 생성</h2>
                 <p>등록한 시험범위만 사용해서 문제를 만들고, 문제마다 AI 난이도와 취약점 태그를 자동 기록합니다.</p>
               </div>
@@ -235,7 +249,8 @@ export default async function AdminPage() {
                       <div className="question-meta">
                         <span className="question-number">#{questions.length - index}</span>
                         <span className="tag tag-red">{questionTypeLabel(question.question_type)}</span>
-                        <span className="difficulty-badge">AI Lv.{question.difficulty_level}</span>
+                        <span className="difficulty-badge target-level">목표 Lv.{question.target_difficulty_level ?? "-"}</span>
+                        <span className="difficulty-badge">AI판정 Lv.{question.difficulty_level}</span>
                         <span className={`status-badge ${question.status === "approved" ? "approved" : "draft"}`}>{question.status === "approved" ? "승인됨" : "초안"}</span>
                       </div>
                       <QuestionActionButtons questionId={question.id} status={question.status} />

@@ -137,3 +137,38 @@ th { color:var(--muted); font-size:12px; }
 .answer-box p { margin:0; white-space:pre-wrap; color:#4b5563; line-height:1.6; font-size:13px; }
 .empty-ai-questions { padding:24px 0; text-align:center; }
 @media (max-width:900px){ .question-top{flex-direction:column;} .question-actions{width:100%;} }
+
+/* v1.4 PDF AI import + target question level */
+.difficulty-picker { display:flex; align-items:end; justify-content:space-between; gap:18px; padding:14px 16px; margin:8px 0 10px; border:1px solid #f0c8c3; background:#fff9f8; border-radius:14px; }
+.difficulty-picker label { display:block; font-size:14px; font-weight:900; margin-bottom:4px; }
+.difficulty-picker p { margin:0; color:var(--muted); font-size:12px; line-height:1.5; }
+.difficulty-select { width:min(300px,100%); flex:0 0 300px; }
+.target-level { background:#fff1ef; color:#a32118; }
+.pdf-panel { display:grid; gap:16px; }
+.pdf-upload-grid { display:grid; grid-template-columns:1.1fr 1.6fr auto; gap:12px; align-items:end; }
+.pdf-upload-button { margin-bottom:15px; white-space:nowrap; }
+.pdf-import-list { display:grid; gap:14px; }
+.pdf-empty { text-align:center; padding:22px 0; }
+.pdf-import-card { border:1px solid var(--line); border-radius:16px; padding:16px; background:#fff; }
+.pdf-import-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+.pdf-import-head h3 { margin:8px 0 3px; font-size:15px; word-break:break-all; }
+.pdf-unit-label { font-size:12px; }
+.pdf-summary { margin:14px 0 10px; font-size:13px; line-height:1.65; color:#4b5563; background:#fafbfc; padding:12px; border-radius:11px; }
+.pdf-warning { margin:10px 0 14px; padding:12px; border-radius:11px; background:#fff8e8; border:1px solid #f4dfad; color:#755b18; font-size:12px; line-height:1.65; }
+.pdf-warning strong { display:block; margin-bottom:4px; }
+.pdf-review-list { display:grid; gap:14px; margin:14px 0; }
+.pdf-review-item { padding:15px; background:#fafbfc; border:1px solid var(--line); border-radius:14px; transition:.15s ease; }
+.pdf-review-item.excluded { opacity:.48; }
+.pdf-review-top { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+.pdf-check { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:850; }
+.pdf-type-select { width:150px; padding:8px 10px; }
+.confidence-badge { margin-left:auto; display:inline-flex; border-radius:999px; padding:5px 9px; background:#eef7f2; color:#08724e; font-size:11px; font-weight:900; }
+.pdf-main-text { min-height:220px; }
+.pdf-source-note { color:var(--muted); font-size:11px; padding-top:4px; }
+@media (max-width:900px){
+  .difficulty-picker{align-items:stretch; flex-direction:column;}
+  .difficulty-select{width:100%; flex-basis:auto;}
+  .pdf-upload-grid{grid-template-columns:1fr;}
+  .pdf-upload-button{margin-bottom:0;}
+  .confidence-badge{margin-left:0;}
+}
