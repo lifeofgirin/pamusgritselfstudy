@@ -368,6 +368,54 @@ const questionsSchema = {
   required: ["questions"],
 } as const;
 
+
+function cleanAiPlainText(value: unknown) {
+  if (typeof value !== "string") return "";
+
+  return value
+    // AI가 태그 앞에 역슬래시를 붙여 반환하는 경우도 정상화
+    .replace(/\\(?=<\/?[a-zA-Z])/g, "")
+    // 줄바꿈 태그는 실제 줄바꿈으로
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>\s*<p[^>]*>/gi, "\n")
+    // HTML 태그 제거
+    .replace(/<\/?(?:b|strong|i|em|u|p|div|span|font|mark)[^>]*>/gi, "")
+    // 혹시 남은 일반 HTML 태그도 제거
+    .replace(/<[^>]+>/g, "")
+    // 흔한 HTML entity 복원
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    // AI가 꾸밈용으로 넣은 Markdown bold 제거
+    .replace(/\*\*/g, "")
+    .replace(/__/g, "")
+    // 지나친 빈 줄 정리
+    .replace(/\n[ \t]+\n/g, "\n\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function sanitizeGeneratedQuestion(question: GeneratedQuestionAI): GeneratedQuestionAI {
+  return {
+    ...question,
+    prompt: cleanAiPlainText(question.prompt),
+    choices: (question.choices ?? []).map((choice) => cleanAiPlainText(choice)),
+    answer: cleanAiPlainText(question.answer),
+    explanation: cleanAiPlainText(question.explanation),
+    ambiguity_check: cleanAiPlainText(question.ambiguity_check),
+    difficulty_reason: cleanAiPlainText(question.difficulty_reason),
+    concept_tags: (question.concept_tags ?? []).map((tag) => cleanAiPlainText(tag)).filter(Boolean),
+    choice_explanations: (question.choice_explanations ?? []).map((item) => ({
+      ...item,
+      explanation: cleanAiPlainText(item.explanation),
+      translation: cleanAiPlainText(item.translation),
+    })),
+  };
+}
+
 function validateGeneratedQuestion(question: GeneratedQuestionAI, index: number) {
   const choices = Array.isArray(question.choices) ? question.choices : [];
   const reviews = Array.isArray(question.choice_explanations) ? question.choice_explanations : [];
@@ -566,6 +614,10 @@ Lv.1~2는 개념/뜻 확인, Lv.3~4는 기본 적용, Lv.5~6은 일반 내신 �
 - difficulty_reason에는 문장 구조, 어휘, 변형, 추론 중 무엇 때문에 그 난이도인지 적는다.
 - 동일 문장을 단순히 보기만 바꿔 반복 출제하지 않는다.
 - 한국어 지시문을 사용하되 영어 원문/보기는 시험에 적합하게 유지한다.
+- 모든 출력 문자열은 반드시 일반 텍스트(plain text)만 사용한다.
+- HTML 태그(<br>, <b>, <strong>, <p> 등), HTML entity, Markdown 꾸밈(**, __), LaTeX 명령을 절대 사용하지 않는다.
+- 줄바꿈이 필요하면 실제 줄바꿈 문자만 사용한다.
+- 강조가 필요하면 [조건], [보기], [정답]처럼 일반 텍스트 표기를 사용한다.
     `.trim(),
     input,
     maxOutputTokens: 10000,
@@ -596,6 +648,8 @@ Lv.1~2는 개념/뜻 확인, Lv.3~4는 기본 적용, Lv.5~6은 일반 내신 �
 8. 서술형은 correct_choice_no=0, choices=[], choice_explanations=[]로 둔다.
 9. 시험범위 자료에 근거하지 않은 내용은 삭제하거나 수정한다.
 10. 정답과 해설이 문제·보기와 완전히 일치하는지 마지막으로 확인한다.
+11. 모든 출력은 plain text만 사용한다. <br>, <b>, <strong>, <p> 같은 HTML 태그나 ** 같은 Markdown 표기를 절대 출력하지 않는다.
+12. 줄바꿈은 실제 줄바꿈으로 표현하고, 강조는 [조건] 같은 일반 텍스트로 표현한다.
 
 결과는 '검수 완료된 최종 문제'만 출력한다.
     `.trim(),
@@ -603,7 +657,10 @@ Lv.1~2는 개념/뜻 확인, Lv.3~4는 기본 적용, Lv.5~6은 일반 내신 �
     maxOutputTokens: 11000,
   });
 
-  const questions = reviewed.questions.slice(0, requestedCount);
+  const questions = reviewed.questions
+    .slice(0, requestedCount)
+    .map(sanitizeGeneratedQuestion);
+
   if (!questions.length) throw new Error("AI가 문제를 생성하지 못했습니다. 다시 시도해주세요.");
   questions.forEach(validateGeneratedQuestion);
 

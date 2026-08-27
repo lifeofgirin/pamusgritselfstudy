@@ -1,4 +1,26 @@
 import { logout } from "@/app/actions/auth";
+
+function cleanAiDisplayText(value: unknown) {
+  if (typeof value !== "string") return "";
+
+  return value
+    .replace(/\\(?=<\/?[a-zA-Z])/g, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>\s*<p[^>]*>/gi, "\n")
+    .replace(/<\/?(?:b|strong|i|em|u|p|div|span|font|mark)[^>]*>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\*\*/g, "")
+    .replace(/__/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 import { requireRole } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { currentGrade, GRADE_SEQUENCE } from "@/lib/grade";
@@ -256,12 +278,12 @@ export default async function AdminPage() {
                       <QuestionActionButtons questionId={question.id} status={question.status} />
                     </div>
                     <div className="question-source">{textbook?.title ?? "교과서"} · Unit {unit?.unit_no ?? "-"}</div>
-                    <p className="question-prompt">{question.prompt}</p>
-                    {!!choices.length && <ol className="question-choices">{choices.map((choice: string, choiceIndex: number) => <li key={choiceIndex}>{choice}</li>)}</ol>}
+                    <p className="question-prompt">{cleanAiDisplayText(question.prompt)}</p>
+                    {!!choices.length && <ol className="question-choices">{choices.map((choice: string, choiceIndex: number) => <li key={choiceIndex}>{cleanAiDisplayText(choice)}</li>)}</ol>}
                     <details className="answer-detail">
                       <summary>정답 / 해설 보기</summary>
-                      <div className="answer-box"><strong>정답</strong><p>{question.correct_choice_no ? `${question.correct_choice_no}번 · ` : ""}{question.answer}</p></div>
-                      <div className="answer-box"><strong>핵심 해설</strong><p>{question.explanation}</p></div>
+                      <div className="answer-box"><strong>정답</strong><p>{question.correct_choice_no ? `${question.correct_choice_no}번 · ` : ""}{cleanAiDisplayText(question.answer)}</p></div>
+                      <div className="answer-box"><strong>핵심 해설</strong><p>{cleanAiDisplayText(question.explanation)}</p></div>
                       {Array.isArray(question.choice_explanations) && !!question.choice_explanations.length && (
                         <div className="answer-box choice-review-box">
                           <strong>보기별 해설 / 해석</strong>
@@ -272,15 +294,15 @@ export default async function AdminPage() {
                                   <span>{item.choice_no}번</span>
                                   <b>{item.is_correct ? "정답" : "오답"}</b>
                                 </div>
-                                {item.translation && <p><em>해석</em> {item.translation}</p>}
-                                <p><em>해설</em> {item.explanation}</p>
+                                {item.translation && <p><em>해석</em> {cleanAiDisplayText(item.translation)}</p>}
+                                <p><em>해설</em> {cleanAiDisplayText(item.explanation)}</p>
                               </div>
                             ))}
                           </div>
                         </div>
                       )}
-                      {question.ambiguity_check && <div className="answer-box ambiguity-box"><strong>복수정답 검수</strong><p>{question.ambiguity_check}</p></div>}
-                      <div className="answer-box"><strong>AI 난이도 근거</strong><p>{question.difficulty_reason}</p></div>
+                      {question.ambiguity_check && <div className="answer-box ambiguity-box"><strong>복수정답 검수</strong><p>{cleanAiDisplayText(question.ambiguity_check)}</p></div>}
+                      <div className="answer-box"><strong>AI 난이도 근거</strong><p>{cleanAiDisplayText(question.difficulty_reason)}</p></div>
                       {!!question.concept_tags?.length && <div className="tag-row">{question.concept_tags.map((tag: string, tagIndex: number) => <span className="tag" key={tagIndex}>{tag}</span>)}</div>}
                     </details>
                   </article>

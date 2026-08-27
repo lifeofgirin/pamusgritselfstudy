@@ -1,0 +1,30 @@
+Pamus Grit Study v1.6 - AI 문제 HTML/Markdown 제거 패치
+
+변경사항
+- 문제 생성 AI에게 plain text만 출력하도록 강제
+- <br>, <b>, <strong>, <p> 등 HTML 태그 금지
+- **, __ 같은 Markdown 꾸밈 금지
+- 줄바꿈은 실제 줄바꿈으로만 출력
+- 저장 직전에 서버에서 한 번 더 태그/꾸밈 자동 제거
+- 기존에 이미 생성되어 DB에 태그가 들어간 문제도 관리자 화면에서는 자동 정리해서 표시
+
+예:
+기존:
+**다음 우리말을 ... <br><br> [조건] <b>ask + 목적어 + to부정사</b>**
+
+변경 후:
+다음 우리말을 본문에 근거하여 영어로 쓰시오. 조건을 모두 지킬 것.
+
+① ...
+② ...
+
+[조건] ask + 목적어 + to부정사 ...
+
+적용 방법
+1. ZIP 안의 app/admin/actions.ts, app/admin/page.tsx를 GitHub 같은 경로에 덮어쓰기
+2. Commit
+3. Vercel 재배포
+4. 새 문제 생성
+
+SQL 추가 실행 / 환경변수 수정 필요 없음.
+app/actions/auth.ts는 건드리지 않습니다.
